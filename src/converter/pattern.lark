@@ -1,0 +1,18 @@
+log: op*
+op: create
+  | update
+  | read
+  | remove
+  | rename
+
+create: "{" date "," inode "," "create" "," path "}" entry* "{" date "," inode "," "release" "," path "}"
+update: "{" date "," inode "," "open" "," path "}" entry* "{" date "," inode "," "write" "," path "}" entry* "{" date "," inode "," "release" "," path "}"
+read: "{" date "," inode "," "open" "," path "}" entry* "{" date "," inode "," "read" "," path "}" entry* "{" date "," inode "," "release" "," path "}"
+remove: "{" date "," inode "," "unlink" "," path "}"
+rename: "{" date "," inode "," "rename" "," path "}"
+
+entry: "{" date "," inode "," event "," path "}"
+date: /\d+-\d+-\d+T\d+:\d+:\d+\.\d+/
+inode: /\d+/
+event: "create"|"open"|"read"|"write"|"release"|"unlink"|"rename"
+path: /[\/\w\.-]+/

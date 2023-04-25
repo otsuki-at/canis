@@ -1,0 +1,29 @@
+#! /bin/bash
+
+# 履歴収集部の収集先ログファイル作成
+sudo touch /var/log/fuse-watch.log
+sudo chmod o+w /var/log/fuse-watch.log
+echo "Log File created."
+
+# 履歴収集部起動
+./collecter/passthrough /fuse-watch
+echo "Collecter starting."
+
+# ホームディレクトリのシンボリックリンク調整
+sudo mv /home/mukohara /home/mukohara.can
+sudo ln -s /fuse-watch/home/mukohara.can /home/mukohara
+echo "Symlink created."
+
+# Redis起動
+redis-server &
+echo "Redis starting."
+
+# 履歴変換部起動
+python ./converter/converter.py /var/log/fuse-watch.log &
+echo "Converter starting."
+
+# 実行部起動
+python ./executor/executor.py ../examples/action.example.conf &
+echo "Executor starting."
+
+
