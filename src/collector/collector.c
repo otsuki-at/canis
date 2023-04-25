@@ -16,7 +16,7 @@
  *
  * Compile with
  *
- *     gcc -Wall passthrough.c `pkg-config fuse3 --cflags --libs` -o passthrough
+ *     gcc -Wall collector.c `pkg-config fuse3 --cflags --libs` -o collector
  *
  * ## Source code ##
  * \include passthrough.c
@@ -53,7 +53,7 @@
 #include <sys/xattr.h>
 #endif
 
-#include "passthrough_helpers.h"
+#include "collector_helpers.h"
 
 static int fill_dir_plus = 0;
 FILE *fp;
@@ -64,16 +64,14 @@ void write_log(char *func_name, const char *path1, const char *path2)
         struct timeval myTime;
         struct stat stat_buf;
         char date[64];
-		int ret;
 		int found = 0;
 
-        ret = stat(path1, &stat_buf);
+        stat(path1, &stat_buf);
         gettimeofday(&myTime, NULL);
         strftime(date, sizeof(date), "%Y-%m-%dT%H:%M:%S", localtime(&myTime.tv_sec));
 
 		for(int i = 0; i < 1; i++){
-		    if(strcmp(ignore_path[0], path1) == 0){
-		    // strcmp(ignore_path[i], path1);
+		    if(path1 != NULL && strcmp(ignore_path[0], path1) == 0){
                 found = 1;
 				break;
 	    	}
