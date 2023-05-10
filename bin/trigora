@@ -1,29 +1,71 @@
 #! /bin/bash
 
-# 履歴収集部の収集先ログファイル作成
-sudo touch /var/log/fuse-watch.log
-sudo chmod o+w /var/log/fuse-watch.log
-echo "Log File created."
+usage(){
+	echo "Usage: trigora [OPTION]... ACTION
+OPTION:
+	--help
+ACTION:
+	start        enable system.
+	stop         disable system."
+}
 
-# 履歴収集部起動
-./collecter/passthrough /fuse-watch
-echo "Collecter starting."
+if [ $1 == "start" ]
+then
+	
+	# 履歴収集部の収集先ログファイル作成
+	sudo touch /var/log/fuse-watch.log
+	sudo chmod o+w /var/log/fuse-watch.log
+	echo "Log File created."
+	
+	# 履歴収集部起動
+	../src/collector/collector /fuse-watch
+	echo "Collecter start."
+	
+	# ホームディレクトリのシンボリックリンク調整
+	sudo mv /home/mukohara /home/mukohara.can
+	sudo ln -s /fuse-watch/home/mukohara.can /home/mukohara
+	echo "Symlink created."
+	
+	# Redis起動
+	redis-server &
+	echo "Redis start."
+	
+	# 履歴変換部起動
+	python ../src/converter/converter.py /var/log/fuse-watch.log &
+	echo "Converter start."
+	
+	# 実行部起動
+	python ../src/executor/executor.py ../examples/action.example.conf &
+	echo "Executor start."
+elif [ $1 == "stop" ]
+then
+	# シンボリックリンク解除
+	sudo rm /home/mukohara
+	sudo mv /home/mukohara.can /home/mukohara
+	echo "Symlink deleted."
 
-# ホームディレクトリのシンボリックリンク調整
-sudo mv /home/mukohara /home/mukohara.can
-sudo ln -s /fuse-watch/home/mukohara.can /home/mukohara
-echo "Symlink created."
+	# ファイルシステム(履歴収集部)アンマウント
+	sudo umount -l /fuse-watch
+	echo "Collector stop."
 
-# Redis起動
-redis-server &
-echo "Redis starting."
+	# Redis停止
+	pkill redis-server
+	echo "Redis stop."
 
-# 履歴変換部起動
-python ./converter/converter.py /var/log/fuse-watch.log &
-echo "Converter starting."
+	# 履歴変換部停止
+	CONVERTER_PID="`ps -auxf | grep ../src/converter | awk '{print $2}'`"
+	kill $CONVERTER_PID
+	echo "$CONVERTER_PID"
+	echo "Converter stop."
 
-# 実行部起動
-python ./executor/executor.py ../examples/action.example.conf &
-echo "Executor starting."
+	# 実行部停止
+	EXECUTOR_PID="`ps -auxf | grep ../src/executor | awk '{print $2}'`"
+	kill $EXECUTOR_PID
+	echo "Executor stop."
 
-
+elif [ $1 == "--help" ]
+then
+	usage
+else
+	echo -e "trigora: unrecognized argument.\\nTry 'trigora --help' for more information."
+fi
