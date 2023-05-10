@@ -113,7 +113,7 @@ class LogConverter:
         self.log = Log()
 
     def convert(self, logs):
-        grammar = open("./converter/pattern.lark")
+        grammar = open("../src/converter/pattern.lark")
         parser = Lark(grammar, parser="lalr", start="log")
         global converted_logs
 
