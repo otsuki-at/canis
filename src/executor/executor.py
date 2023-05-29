@@ -1,6 +1,9 @@
 import redis
 import sys
 import os
+import signal
+
+pidfile_name = ""
 
 class Subscriber:
     def __init__(self):
@@ -48,9 +51,19 @@ class Processor:
     def __del__(self):
         self.fd.close()
 
+def handler(signum, frame):
+    os.remove("../tmp/" + pidfile_name)
+
 def main():
     args = sys.argv
     configfile_name = args[1]
+    global pidfile_name
+    pidfile_name = args[2]
+    pid_file = open('../tmp/' + pidfile_name, 'w')
+    pid = str(os.getpid())
+    pid_file.write(pid + '\n')
+    pid_file.flush()
+    signal.signal(signal.SIGTERM, handler)
 
     subscriber = Subscriber()
     processor = Processor(configfile_name)

@@ -1,4 +1,6 @@
 import sys
+import os
+import signal
 from lark import Lark
 from lark import Transformer
 import time
@@ -6,6 +8,7 @@ import pathlib
 import redis
 
 converted_logs = ""
+pidfile_name = ""
 
 EventList = ["create",
              "open",
@@ -161,11 +164,22 @@ class Publisher:
     def publish(self, data):
         self.rc.publish("converted_log", data)
 
+def handler(signum, frame):
+    os.remove("../tmp/" + pidfile_name)
+
 def main():
     args = sys.argv
     logfile_name = args[1]
+    global pidfile_name
+    pidfile_name = args[2]
     global converted_logs
     db = redis.Redis(host='localhost', port=6379, decode_responses=True)
+    pid_file = open("../tmp/" + pidfile_name, 'w')
+    pid = str(os.getpid())
+    pid_file.write(pid + '\n')
+    pid_file.flush()
+    signal.signal(signal.SIGTERM, handler)
+
 
     log_converter = LogConverter()
     logfile = LogFile(logfile_name)
