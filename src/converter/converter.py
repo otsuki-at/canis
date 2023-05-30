@@ -99,17 +99,16 @@ class LogFile:
     def get_update(self):
         while(True):
             if self.update_exists():
-                print("update!")
+                # print("update!")
                 logs = self.fd.read().splitlines()
 
                 return logs
             else:
-                print("no update!")
+                # print("no update!")
                 time.sleep(4)
 
     def __del__(self):
         self.fd.close()
-        print("file closed.")
 
 class LogConverter:
     def __init__(self):
@@ -166,6 +165,7 @@ class Publisher:
 
 def handler(signum, frame):
     os.remove("../tmp/" + pidfile_name)
+    sys.exit()
 
 def main():
     args = sys.argv
@@ -189,7 +189,7 @@ def main():
         logs = logfile.get_update()
         out_logs = log_converter.convert(logs)
         converted_logs = ""
-        print(out_logs)
+        # print(out_logs)
         publisher.publish(out_logs)
 
 

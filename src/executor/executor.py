@@ -12,10 +12,13 @@ class Subscriber:
         self.ps.subscribe("converted_log")
 
     def listen(self):
-        for mes in self.ps.listen():
-            if mes["data"] == 1:
-                continue
-            return mes["data"]
+        try:
+            for mes in self.ps.listen():
+                if mes["data"] == 1:
+                    continue
+                return mes["data"]
+        except:
+            sys.exit()
 
 class Processor:
     def __init__(self, filepath):

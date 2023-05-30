@@ -613,7 +613,7 @@ static const struct fuse_operations xmp_oper = {
 
 int main(int argc, char *argv[])
 {
-    fp = fopen("/var/log/fuse-watch.log", "a");
+    fp = fopen("../log/fuse-watch.log", "a");
 	enum { MAX_ARGS = 10 };
 	int i, ret, new_argc;
 	char *new_argv[MAX_ARGS];

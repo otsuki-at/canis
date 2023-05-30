@@ -23,9 +23,9 @@ if [ $1 == "start" ]
 then
 
 	# 履歴収集部の収集先ログファイル作成
-	sudo touch /var/log/fuse-watch.log
-	sudo chmod o+w /var/log/fuse-watch.log
-	echo "Log File created."
+	sudo touch ../log/fuse-watch.log
+	sudo chmod o+w ../log/fuse-watch.log
+	echo `date`,"../log/fuse-watch.log created." >> ../log/trigora.log
 
 	# proc.stat作成
 	# touch ../tmp/proc.stat
@@ -34,28 +34,28 @@ then
 	# 履歴収集部起動
 	../src/collector/collector /fuse-watch
 	# echo "collector 1" >> ../tmp/proc.stat
-	echo "Collecter start."
+	echo `date`,"Collecter started." >> ../log/trigora.log
 
 	# ホームディレクトリのシンボリックリンク調整
 	sudo mv /home/mukohara /home/mukohara.can
 	sudo ln -s /fuse-watch/home/mukohara.can /home/mukohara
 	# echo "symlink 1" >> ../tmp/proc.stat
-	echo "Symlink created."
+	echo `date`,"Symlink created." >> ../log/trigora.log
 
 	# Redis起動
 	sudo redis-server /etc/redis/redis.conf
 	# echo "redis 1" >> ../tmp/proc.stat
-	echo "Redis start."
+	echo `date`,"Redis server started." >> ../log/trigora.log
 
 	# 履歴変換部起動
 	python ../src/converter/converter.py /var/log/fuse-watch.log converter.pid &
 	# echo "converter 1" >> ../tmp/proc.stat
-	echo "Converter start."
+	echo `date`,"Converter started." >> ../log/trigora.log
 
 	# 実行部起動
 	python ../src/executor/executor.py ../examples/action.example.conf executor.pid &
 	# echo "executor 1" >> ../tmp/proc.stat
-	echo "Executor start."
+	echo `date`,"Executor started." >> ../log/trigora.log
 elif [ $1 == "stop" ]
 then
 	# シンボリックリンク解除
@@ -65,7 +65,7 @@ then
 		sudo unlink /home/mukohara
 		sudo mv /home/mukohara.can /home/mukohara
 		# sed -i "s/symlink 1/symlink 0/g" ../tmp/proc.stat
-		echo "Symlink deleted."
+		echo `date`,"Symlink deleted." >> ../log/trigora.log
 	fi
 	# fi
 
@@ -97,13 +97,13 @@ then
 	if [ -e ../tmp/converter.pid ]; then
 		CONVERTER_PID="`cat ../tmp/converter.pid`"
 		kill $CONVERTER_PID
-	 	echo "Converter stop."
+	 	echo `date`,"Converter stop." >> ../log/trigora.log
 	fi
 
 	if [ -e ../tmp/executor.pid ]; then
 		EXECUTOR_PID="`cat ../tmp/executor.pid`"
 		kill $EXECUTOR_PID
-	 	echo "Executor stop."
+	 	echo `date`,"Executor stop." >> ../log/trigora.log
 	fi
 
 	# proc.pid削除
@@ -119,10 +119,13 @@ then
 	# if [ ${REDIS_STAT: -1} -eq 1 ]; then
 	if [ -e /var/run/redis/redis-server.pid ]; then
 		sudo pkill redis-server
-		echo "Redis stop."
+		echo `date`,"Redis stop." >> ../log/trigora.log
 	fi
 	# sed -i "s/redis 1/redis 0/g" ../tmp/proc.stat
 	# fi
+
+	# 各プロセス終了後，即ファイルシステムをアンマウントすると剥がれないので少し待機
+	sleep 0.5
 
 	# ファイルシステム(履歴収集部)アンマウント
 	# COLLECTOR_STAT=`cat ../tmp/proc.stat | grep collector`
@@ -133,7 +136,7 @@ then
 		if [ $? -ne 0 ]; then
 			exit 1;
 		fi
-		echo "Collector stop."
+		echo `date`,"Collector stop." >> ../log/trigora.log
     	# sed -i "s/collector 1/collector 0/g" ../tmp/proc.stat
 	fi
 
