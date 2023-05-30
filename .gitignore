@@ -1,0 +1,7 @@
+/log/*
+/tmp/*
+
+/src/converter/dump.rdb
+/bin/dump.rdb
+
+src/collector/collector
