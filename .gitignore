@@ -1,7 +1,9 @@
 /log/*
 /tmp/*
+!/log/.keep
+!/tmp/.keep
 
 /src/converter/dump.rdb
 /bin/dump.rdb
 
-src/collector/collector
+/src/collector/collector
