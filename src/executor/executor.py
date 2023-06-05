@@ -56,6 +56,7 @@ class Processor:
 
 def handler(signum, frame):
     os.remove("../tmp/" + pidfile_name)
+    sys.exit()
 
 def main():
     args = sys.argv

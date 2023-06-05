@@ -43,6 +43,9 @@ then
 	echo `date`,"Symlink created." >> ../log/trigora.log
 
 	# Redis起動
+	if [ ! -d "/var/run/redis" ]; then
+		sudo mkdir /var/run/redis
+	fi
 	sudo redis-server /etc/redis/redis.conf
 	# echo "redis 1" >> ../tmp/proc.stat
 	echo `date`,"Redis server started." >> ../log/trigora.log
@@ -64,6 +67,7 @@ then
 	if [ -L /home/mukohara ]; then
 		sudo unlink /home/mukohara
 		sudo mv /home/mukohara.can /home/mukohara
+		cd $PWD
 		# sed -i "s/symlink 1/symlink 0/g" ../tmp/proc.stat
 		echo `date`,"Symlink deleted." >> ../log/trigora.log
 	fi
