@@ -38,6 +38,7 @@
 
 #include <fuse.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -59,12 +60,46 @@ static int fill_dir_plus = 0;
 FILE *fp;
 char ignore_path[1][200] = {"/home/mukohara.can/temporary/converter/pattern.lark"};
 
+char* replace(char* s, const char* before, const char* after)
+{
+	const size_t before_len = strlen(before);
+	if (before_len == 0){
+		return s;
+	}
+
+	const size_t after_len = strlen(after);
+	char* p = s;
+
+	for (;;){
+		// 置換対象の文字列を探す
+		p = strstr(p, before);
+		if (p == NULL){
+			break;
+		}
+
+		*p = '\0';
+
+        strcat(s, after);
+        strcat(s, p+before_len);
+
+
+		// 探索開始位置をずらす
+		p += after_len;
+	}
+	return s;
+}
+
 void write_log(char *func_name, const char *path1, const char *path2)
 {
         struct timeval myTime;
         struct stat stat_buf;
         char date[64];
 		int found = 0;
+
+		char* p1 = (char*)malloc(strlen(path1)+1);
+		memcpy(p1, path1, strlen(path1)+1);
+		char* p2 = (char*)malloc(strlen(path2)+1);
+		memcpy(p2, path2, strlen(path2)+1);
 
         stat(path1, &stat_buf);
         gettimeofday(&myTime, NULL);
@@ -77,20 +112,25 @@ void write_log(char *func_name, const char *path1, const char *path2)
 	    	}
 		}
 
-        if(path2==NULL && found==0){
-            fprintf(fp, "%s.%06ld,%ld,%s,%s\n", date, myTime.tv_usec, stat_buf.st_ino, func_name, path1);
+        if(strcmp(path2, "null")==0 && found==0){
+			replace(p1, "mukohara.can", "mukohara");
+            fprintf(fp, "%s.%06ld,%ld,%s,%s\n", date, myTime.tv_usec, stat_buf.st_ino, func_name, p1);
             // fprintf(stdout, "%s.%06ld,%ld,%s,%s\n", date, myTime.tv_usec, stat_buf.st_ino, func_name, path1);
         }else if(found==0){
-            fprintf(fp, "%s.%06ld,%ld,%s,%s,%s\n", date, myTime.tv_usec, stat_buf.st_ino, func_name, path1, path2);
+			replace(p1, "mukohara.can", "mukohara");
+			replace(p2, "mukohara.can", "mukohara");
+            fprintf(fp, "%s.%06ld,%ld,%s,%s,%s\n", date, myTime.tv_usec, stat_buf.st_ino, func_name, p1, p2);
         //     fprintf(stdout, "%s.%06ld,%ld,%s,%s,%s\n", date, myTime.tv_usec, stat_buf.st_ino, func_name, path1, path2);
         }
         fflush(fp);
+		free(p1);
+		free(p2);
 }
 
 static void *xmp_init(struct fuse_conn_info *conn,
 		      struct fuse_config *cfg)
 {
-    write_log("init", NULL, NULL);
+    write_log("init", "null", "null");
 	(void) conn;
 	cfg->use_ino = 1;
 
@@ -111,7 +151,7 @@ static void *xmp_init(struct fuse_conn_info *conn,
 static int xmp_getattr(const char *path, struct stat *stbuf,
 		       struct fuse_file_info *fi)
 {
-    write_log("getattr", path, NULL);
+    write_log("getattr", path, "null");
 	(void) fi;
 	int res;
 
@@ -124,7 +164,7 @@ static int xmp_getattr(const char *path, struct stat *stbuf,
 
 static int xmp_access(const char *path, int mask)
 {
-    write_log("access", path, NULL);
+    write_log("access", path, "null");
 	int res;
 
 	res = access(path, mask);
@@ -136,7 +176,7 @@ static int xmp_access(const char *path, int mask)
 
 static int xmp_readlink(const char *path, char *buf, size_t size)
 {
-    write_log("readlink", path, NULL);
+    write_log("readlink", path, "null");
 	int res;
 
 	res = readlink(path, buf, size - 1);
@@ -152,7 +192,7 @@ static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		       off_t offset, struct fuse_file_info *fi,
 		       enum fuse_readdir_flags flags)
 {
-    write_log("readdir", path, NULL);
+    write_log("readdir", path, "null");
 	DIR *dp;
 	struct dirent *de;
 
@@ -179,7 +219,7 @@ static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 
 static int xmp_mknod(const char *path, mode_t mode, dev_t rdev)
 {
-    write_log("mknod", path, NULL);
+    write_log("mknod", path, "null");
 	int res;
 
 	res = mknod_wrapper(AT_FDCWD, path, NULL, mode, rdev);
@@ -191,7 +231,7 @@ static int xmp_mknod(const char *path, mode_t mode, dev_t rdev)
 
 static int xmp_mkdir(const char *path, mode_t mode)
 {
-    write_log("mkdir", path, NULL);
+    write_log("mkdir", path, "null");
 	int res;
 
 	res = mkdir(path, mode);
@@ -203,7 +243,7 @@ static int xmp_mkdir(const char *path, mode_t mode)
 
 static int xmp_unlink(const char *path)
 {
-    write_log("unlink", path, NULL);
+    write_log("unlink", path, "null");
 	int res;
 
 	res = unlink(path);
@@ -215,7 +255,7 @@ static int xmp_unlink(const char *path)
 
 static int xmp_rmdir(const char *path)
 {
-    write_log("rmdir", path, NULL);
+    write_log("rmdir", path, "null");
 	int res;
 
 	res = rmdir(path);
@@ -267,7 +307,7 @@ static int xmp_link(const char *from, const char *to)
 static int xmp_chmod(const char *path, mode_t mode,
 		     struct fuse_file_info *fi)
 {
-    write_log("chmod", path, NULL);
+    write_log("chmod", path, "null");
 	(void) fi;
 	int res;
 
@@ -281,7 +321,7 @@ static int xmp_chmod(const char *path, mode_t mode,
 static int xmp_chown(const char *path, uid_t uid, gid_t gid,
 		     struct fuse_file_info *fi)
 {
-    write_log("chown", path, NULL);
+    write_log("chown", path, "null");
 	(void) fi;
 	int res;
 
@@ -295,7 +335,7 @@ static int xmp_chown(const char *path, uid_t uid, gid_t gid,
 static int xmp_truncate(const char *path, off_t size,
 			struct fuse_file_info *fi)
 {
-    write_log("truncate", path, NULL);
+    write_log("truncate", path, "null");
 	int res;
 
 	if (fi != NULL)
@@ -312,7 +352,7 @@ static int xmp_truncate(const char *path, off_t size,
 static int xmp_utimens(const char *path, const struct timespec ts[2],
 		       struct fuse_file_info *fi)
 {
-    write_log("utimens", path ,NULL);
+    write_log("utimens", path , "null");
 	(void) fi;
 	int res;
 
@@ -328,7 +368,7 @@ static int xmp_utimens(const char *path, const struct timespec ts[2],
 static int xmp_create(const char *path, mode_t mode,
 		      struct fuse_file_info *fi)
 {
-    write_log("create", path, NULL);
+    write_log("create", path, "null");
 	int res;
 
 	res = open(path, fi->flags, mode);
@@ -341,7 +381,7 @@ static int xmp_create(const char *path, mode_t mode,
 
 static int xmp_open(const char *path, struct fuse_file_info *fi)
 {
-    write_log("open", path, NULL);
+    write_log("open", path, "null");
 	int res;
 
 	res = open(path, fi->flags);
@@ -355,7 +395,7 @@ static int xmp_open(const char *path, struct fuse_file_info *fi)
 static int xmp_read(const char *path, char *buf, size_t size, off_t offset,
 		    struct fuse_file_info *fi)
 {
-    write_log("read", path, NULL);
+    write_log("read", path, "null");
 	int fd;
 	int res;
 
@@ -379,7 +419,7 @@ static int xmp_read(const char *path, char *buf, size_t size, off_t offset,
 static int xmp_write(const char *path, const char *buf, size_t size,
 		     off_t offset, struct fuse_file_info *fi)
 {
-    write_log("write", path, NULL);
+    write_log("write", path, "null");
 	int fd;
 	int res;
 
@@ -388,7 +428,7 @@ static int xmp_write(const char *path, const char *buf, size_t size,
 		fd = open(path, O_WRONLY);
 	else
 		fd = fi->fh;
-	
+
 	if (fd == -1)
 		return -errno;
 
@@ -403,7 +443,7 @@ static int xmp_write(const char *path, const char *buf, size_t size,
 
 static int xmp_statfs(const char *path, struct statvfs *stbuf)
 {
-    write_log("statfs", path, NULL);
+    write_log("statfs", path, "null");
 	int res;
 
 	res = statvfs(path, stbuf);
@@ -415,7 +455,7 @@ static int xmp_statfs(const char *path, struct statvfs *stbuf)
 
 static int xmp_release(const char *path, struct fuse_file_info *fi)
 {
-    write_log("release", path, NULL);
+    write_log("release", path, "null");
 	(void) path;
 	close(fi->fh);
 	return 0;
@@ -424,7 +464,7 @@ static int xmp_release(const char *path, struct fuse_file_info *fi)
 static int xmp_fsync(const char *path, int isdatasync,
 		     struct fuse_file_info *fi)
 {
-    write_log("fsync", path, NULL);
+    write_log("fsync", path, "null");
 	/* Just a stub.	 This method is optional and can safely be left
 	   unimplemented */
 
@@ -438,7 +478,7 @@ static int xmp_fsync(const char *path, int isdatasync,
 static int xmp_fallocate(const char *path, int mode,
 			off_t offset, off_t length, struct fuse_file_info *fi)
 {
-    write_log("fallocate", path, NULL);
+    write_log("fallocate", path, "null");
 	int fd;
 	int res;
 
@@ -468,7 +508,7 @@ static int xmp_fallocate(const char *path, int mode,
 static int xmp_setxattr(const char *path, const char *name, const char *value,
 			size_t size, int flags)
 {
-    write_log("setxattr", path, NULL);
+    write_log("setxattr", path, "null");
 	int res = lsetxattr(path, name, value, size, flags);
 	if (res == -1)
 		return -errno;
@@ -478,7 +518,7 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,
 static int xmp_getxattr(const char *path, const char *name, char *value,
 			size_t size)
 {
-    write_log("getxattr", path, NULL);
+    write_log("getxattr", path, "null");
 	int res = lgetxattr(path, name, value, size);
 	if (res == -1)
 		return -errno;
@@ -487,7 +527,7 @@ static int xmp_getxattr(const char *path, const char *name, char *value,
 
 static int xmp_listxattr(const char *path, char *list, size_t size)
 {
-    write_log("listxattr", path, NULL);
+    write_log("listxattr", path, "null");
 	int res = llistxattr(path, list, size);
 	if (res == -1)
 		return -errno;
@@ -496,7 +536,7 @@ static int xmp_listxattr(const char *path, char *list, size_t size)
 
 static int xmp_removexattr(const char *path, const char *name)
 {
-    write_log("removexattr", path, NULL);
+    write_log("removexattr", path, "null");
 	int res = lremovexattr(path, name);
 	if (res == -1)
 		return -errno;
@@ -549,7 +589,7 @@ static ssize_t xmp_copy_file_range(const char *path_in,
 
 static off_t xmp_lseek(const char *path, off_t off, int whence, struct fuse_file_info *fi)
 {
-    write_log("lseek", path, NULL);
+    write_log("lseek", path, "null");
 	int fd;
 	off_t res;
 
@@ -614,6 +654,11 @@ static const struct fuse_operations xmp_oper = {
 int main(int argc, char *argv[])
 {
     fp = fopen("../log/fuse-watch.log", "a");
+	if(fp == NULL)  // ファイルオープン失敗
+    {
+        fprintf(stderr, "%s\n", strerror(errno));
+        return 1;  // 異常終了
+    }
 	enum { MAX_ARGS = 10 };
 	int i, ret, new_argc;
 	char *new_argv[MAX_ARGS];
