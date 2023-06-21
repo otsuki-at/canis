@@ -10,11 +10,31 @@
 
 # Setup
 ## Install Redis
-To be continued.
+### Linux
+```
+$ sudo add-apt-repository ppa:redislabs/redis
+$ sudo apt-get update
+$ sudo apt-get install redis
+```
 
 # Usage
 ## Settings
-To be continued.
++ `action.conf` に，処理を設定する．
+  ```
+  [rule]
+  PATH = /path/of/target/file
+  WHEN = event_name
+  DO = gcc /path/of/target/file
+  ```
+  + PATH には，監視対象ファイルのパスを記述する．
+    `,` 区切りで複数のファイルを指定可能．また，`*` をワイルドカードとして指定可能．
+  + WHEN には，監視対象のファイル操作を記述する．
+    `,` 区切りで複数のファイル操作を指定可能．指定可能なファイル操作は，`create`，`update`，`read`，`remove`，`rename`．
+  + DO には，実行する処理を記述する．
+    CLI で実行するコマンドを記述する．`,` 区切りで複数のコマンドを指定可能．
 
 ## Launch
-To be continued.
++ システム有効化
+  `$ trigora start`
++ システム無効化
+  `$ trigora stop`
