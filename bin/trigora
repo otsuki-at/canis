@@ -51,12 +51,12 @@ then
 	echo `date`,"Redis server started." >> ../log/trigora.log
 
 	# 履歴変換部起動
-	python ../src/converter/converter.py /var/log/fuse-watch.log converter.pid &
+	python ../src/converter/converter.py ../log/fuse-watch.log converter.pid &
 	# echo "converter 1" >> ../tmp/proc.stat
 	echo `date`,"Converter started." >> ../log/trigora.log
 
 	# 実行部起動
-	python ../src/executor/executor.py ../examples/action.example.conf executor.pid &
+	python ../src/executor/executor.py ../conf/actions/actions.conf.yaml executor.pid &
 	# echo "executor 1" >> ../tmp/proc.stat
 	echo `date`,"Executor started." >> ../log/trigora.log
 elif [ $1 == "stop" ]

@@ -2,6 +2,7 @@ import redis
 import sys
 import os
 import signal
+import yaml
 
 pidfile_name = ""
 
@@ -22,19 +23,29 @@ class Subscriber:
 
 class Processor:
     def __init__(self, filepath):
-        self.fd = open(filepath)
-        self.conf = []
-        self.i = 0
+        # self.fd = open(filepath)
+        self.action_confs = []
+        # self.i = 0
+        with open(filepath, 'r') as actions_conf_yml:
+            action_confs = yaml.safe_load(actions_conf_yml)
 
-        params = self.fd.read().splitlines()
-        for param in params:
-            if param.startswith("path"):
-                self.conf.append({"path": param[6:-1]})
-            elif param.startswith("when"):
-                self.conf[self.i].update({"when": param[6:-1]})
-            elif param.startswith("do"):
-                self.conf[self.i].update({"do": param[4:-1]})
-                self.i += 1
+        # print(action_confs["actions"])
+
+        for action_conf in action_confs["actions"]:
+            with open("../conf/actions/" + action_conf, "r") as action:
+                conf = yaml.safe_load(action)
+                self.action_confs.append([conf["path"], conf["when"], conf["do"]])
+
+        # params = self.fd.read().splitlines()
+        # print(params)
+        # for param in params:
+        #     if param.startswith("path"):
+        #         self.conf.append({"path": param[6:-1]})
+        #     elif param.startswith("when"):
+        #         self.conf[self.i].update({"when": param[6:-1]})
+        #     elif param.startswith("do"):
+        #         self.conf[self.i].update({"do": param[4:-1]})
+        #         self.i += 1
 
     def process(self, data):
         logs = data.split("\n")
@@ -46,13 +57,19 @@ class Processor:
             event = log.split(",")[2]
             path = log.split(",")[3]
 
-            list_search = list(filter(lambda item : item["path"] == path, self.conf))
-            for entry_search in list_search:
-                if entry_search["when"] == event:
-                    os.system(entry_search["do"])
+            # list_search = list(filter(lambda item : item["path"] == path, self.conf))
+            # for entry_search in list_search:
+            #     if entry_search["when"] == event:
+            #         os.system(entry_search["do"])
+            for conf in self.action_confs:
+                conf_path = conf[0]
+                conf_when = conf[1]
+                conf_do = conf[2]
+                if (conf_path == path) and (conf_when == event):
+                    os.system(conf_do)
 
-    def __del__(self):
-        self.fd.close()
+    # def __del__(self):
+    #     self.fd.close()
 
 def handler(signum, frame):
     os.remove("../tmp/" + pidfile_name)

@@ -189,8 +189,9 @@ def main():
         logs = logfile.get_update()
         out_logs = log_converter.convert(logs)
         converted_logs = ""
-        # print(out_logs)
         publisher.publish(out_logs)
+        with open('../log/converted.log', 'a') as f:
+            print(out_logs, file=f)
 
 
 if __name__ == "__main__":
