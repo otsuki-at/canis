@@ -114,6 +114,9 @@ int main(int argc, char *argv[]){
                 // printf("arg is %s\n", optarg);
                 LogFile = optarg;
                 break;
+            case 'p':
+                printf("-p option is not implemented now.\n");
+                break;
             case 'h':
                 print_usage();
                 break;
