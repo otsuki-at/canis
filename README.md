@@ -40,7 +40,28 @@ $ sudo apt-get install redis
   ```
 
 ## Launch
+以下のように実行するには，`bin/trigora` にパスを通す必要がある．
 + システム有効化
   `$ trigora start`
 + システム無効化
   `$ trigora stop`
+
+## Clustering file access log
+ファイルアクセス履歴が出力された複数のファイルをクラスタリングする．ファイルは，それぞれ分類したい作業に対応したファイルである．ファイルアクセス履歴は，システムを有効化した後，随時 `log/fuse-watch.log` に出力される．
+2つのコーディング作業と1つのウェブブラウジングのファイルアクセス履歴をクラスタリングする例を以下に示す．
+```
+$ python clustering.py coding1.log coding2.log browsing1.log
+```
+分類するクラスタ数に応じて，`clustering.py` 565行目の `KMeans` メソッドの引数 `n_clusters` の値を変更する．例えば上記の例において，コーディング作業とウェブブラウジングに分類したい場合は，以下のように `n_cluster=2` とする．
+```
+kmeans = KMeans(n_clusters=2, max_iter=400, init="random", n_init="auto")
+```
+
+## Creating Heat Map of file access
+ファイルアクセス履歴が出力されたファイルをヒートマップとして出力する．ファイルアクセス履歴を任意の時間間隔で分割し，それぞれの間隔で様々な拡張子を持つファイルやドットファイルへのアクセス回数を集計しヒートマップとして出力する．
+Python を用いたコーディング作業により得られたファイルアクセス履歴をヒートマップ化する実行例と得られたヒートマップを以下に示す．
+```
+$ python heatmap.py coding1.log
+```
+<img src="https://github.com/mukohara/trigora/assets/81736636/87eb08e6-f1cf-455c-ba2d-0a0d4708e90b" width="500px">
+ファイルアクセス履歴の分割時間間隔は，`heatmap.py` 563行目の `separate_by_time(5)` メソッドのように指定する．この場合は5秒間隔で分割を行う．また，ヒートマップのタイトルなどは `Heatmap` クラスの `show(self, matrix)` メソッドで指定する．
