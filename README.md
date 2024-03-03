@@ -64,4 +64,5 @@ Python を用いたコーディング作業により得られたファイルア�
 $ python heatmap.py coding1.log
 ```
 <img src="https://github.com/mukohara/trigora/assets/81736636/87eb08e6-f1cf-455c-ba2d-0a0d4708e90b" width="500px">
+
 ファイルアクセス履歴の分割時間間隔は，`heatmap.py` 563行目の `separate_by_time(5)` メソッドのように指定する．この場合は5秒間隔で分割を行う．また，ヒートマップのタイトルなどは `Heatmap` クラスの `show(self, matrix)` メソッドで指定する．
