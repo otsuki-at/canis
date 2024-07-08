@@ -1,4 +1,6 @@
 #! /bin/bash
+# .envファイルのパスを設定する．
+ENVDIR=/path/of/.env
 
 usage(){
 	echo "Usage: trigora [OPTION]... ACTION
@@ -21,26 +23,34 @@ fi
 
 if [ $1 == "start" ]
 then
+    # .envファイルに設定した環境変数の読み込み
+    source $ENVDIR
+    export LOGDIR
+    export DIR
+
+    for ignore in $(compgen -v | grep ^IGNORE); do
+	    export $ignore
+    done
 
 	# 履歴収集部の収集先ログファイル作成
-	sudo touch ../log/fuse-watch.log
-	sudo chmod o+w ../log/fuse-watch.log
-	echo `date`,"../log/fuse-watch.log created." >> ../log/trigora.log
+	sudo touch $LOGDIR/fuse-watch.log
+	sudo chmod o+w $LOGDIR/fuse-watch.log
+	echo `date`,"$LOGDIR/fuse-watch.log created." >> $DIR/log/trigora.log
 
 	# proc.stat作成
 	# touch ../tmp/proc.stat
 	# echo "proc.stat create."
 
 	# 履歴収集部起動
-	../src/collector/collector /fuse-watch
+	$DIR/src/collector/collector /fuse-watch
 	# echo "collector 1" >> ../tmp/proc.stat
-	echo `date`,"Collecter started." >> ../log/trigora.log
+	echo `date`,"Collecter started." >> $DIR/log/trigora.log
 
 	# ホームディレクトリのシンボリックリンク調整
 	sudo mv ${HOME} ${HOME}.can
 	sudo ln -s /fuse-watch${HOME}.can ${HOME}
 	# echo "symlink 1" >> ../tmp/proc.stat
-	echo `date`,"Symlink created." >> ../log/trigora.log
+	echo `date`,"Symlink created." >> $DIR/log/trigora.log
 
 	# Redis起動
 	if [ ! -d "/var/run/redis" ]; then
@@ -48,28 +58,33 @@ then
 	fi
 	sudo redis-server /etc/redis/redis.conf
 	# echo "redis 1" >> ../tmp/proc.stat
-	echo `date`,"Redis server started." >> ../log/trigora.log
+	echo `date`,"Redis server started." >> $DIR/log/trigora.log
 
 	# 履歴変換部起動
-	python ../src/converter/converter.py ../log/fuse-watch.log converter.pid &
+	python3 $DIR/src/converter/converter.py $LOGDIR/fuse-watch.log converter.pid &
 	# echo "converter 1" >> ../tmp/proc.stat
-	echo `date`,"Converter started." >> ../log/trigora.log
+	echo `date`,"Converter started." >> $DIR/log/trigora.log
 
 	# 実行部起動
-	python ../src/executor/executor.py ../conf/actions/actions.conf.yaml executor.pid &
+	python3 $DIR/src/executor/executor.py $DIR/conf/actions/actions.conf.yaml executor.pid &
 	# echo "executor 1" >> ../tmp/proc.stat
-	echo `date`,"Executor started." >> ../log/trigora.log
+	echo `date`,"Executor started." >> $DIR/log/trigora.log
 elif [ $1 == "stop" ]
 then
+    # .envファイルに設定した環境変数の読み込み
+    source $ENVDIR
+    export LOGDIR
+    export DIR
+    
 	# シンボリックリンク解除
 	# SYMLINK_STAT=`cat ../tmp/proc.stat | grep symlink`
 	# if [ ${SYMLINK_STAT: -1} -eq 1 ]; then
-	if [ -L /home/mukohara ]; then
-		sudo unlink /home/mukohara
-		sudo mv /home/mukohara.can /home/mukohara
-		cd $PWD
+	if [ -L ${HOME} ]; then
+		sudo unlink ${HOME}
+		sudo mv ${HOME}.can ${HOME}
+		cd ${HOME}
 		# sed -i "s/symlink 1/symlink 0/g" ../tmp/proc.stat
-		echo `date`,"Symlink deleted." >> ../log/trigora.log
+		echo `date`,"Symlink deleted." >> $DIR/log/trigora.log
 	fi
 	# fi
 
@@ -98,16 +113,16 @@ then
 	# fi
 
 	# 履歴変換部，実行部停止
-	if [ -e ../tmp/converter.pid ]; then
-		CONVERTER_PID="`cat ../tmp/converter.pid`"
+	if [ -e $DIR/tmp/converter.pid ]; then
+		CONVERTER_PID="`cat $DIR/tmp/converter.pid`"
 		kill $CONVERTER_PID
-	 	echo `date`,"Converter stop." >> ../log/trigora.log
+	 	echo `date`,"Converter stop." >> $DIR/log/trigora.log
 	fi
 
-	if [ -e ../tmp/executor.pid ]; then
-		EXECUTOR_PID="`cat ../tmp/executor.pid`"
+	if [ -e $DIR/tmp/executor.pid ]; then
+		EXECUTOR_PID="`cat $DIR/tmp/executor.pid`"
 		kill $EXECUTOR_PID
-	 	echo `date`,"Executor stop." >> ../log/trigora.log
+	 	echo `date`,"Executor stop." >> $DIR/log/trigora.log
 	fi
 
 	# proc.pid削除
@@ -123,7 +138,7 @@ then
 	# if [ ${REDIS_STAT: -1} -eq 1 ]; then
 	if [ -e /var/run/redis/redis-server.pid ]; then
 		sudo pkill redis-server
-		echo `date`,"Redis stop." >> ../log/trigora.log
+		echo `date`,"Redis stop." >> $DIR/log/trigora.log
 	fi
 	# sed -i "s/redis 1/redis 0/g" ../tmp/proc.stat
 	# fi
@@ -140,7 +155,7 @@ then
 		if [ $? -ne 0 ]; then
 			exit 1;
 		fi
-		echo `date`,"Collector stop." >> ../log/trigora.log
+		echo `date`,"Collector stop." >> $DIR/log/trigora.log
     	# sed -i "s/collector 1/collector 0/g" ../tmp/proc.stat
 	fi
 

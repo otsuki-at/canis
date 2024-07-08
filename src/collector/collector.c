@@ -55,10 +55,22 @@
 #endif
 
 #include "collector_helpers.h"
+#define MAX_ARG_NUM 100
 
 static int fill_dir_plus = 0;
 FILE *fp;
-char ignore_path[1][200] = {"/home/mukohara.can/temporary/converter/pattern.lark"};
+char ignore_path[MAX_ARG_NUM][200];
+
+void set_ignore(){
+    int i=0;
+    char ignore[10];
+    sprintf(ignore,"IGNORE%d",i);
+    while(getenv(ignore)!=NULL){
+        strcpy(ignore_path[i],getenv(ignore));
+        i++;
+        sprintf(ignore,"IGNORE%d",i);
+    }
+}
 
 char* replace(char* s, const char* before, const char* after)
 {
@@ -80,7 +92,9 @@ char* replace(char* s, const char* before, const char* after)
 		*p = '\0';
 
         strcat(s, after);
-        strcat(s, p+before_len);
+        char *path_before = (char*)malloc(strlen(p+before_len)+1);
+        memcpy(aaa,p+before_len,strlen(p+before_len)+1);
+        strcat(s, path_before);
 
 
 		// 探索開始位置をずらす
@@ -95,30 +109,38 @@ void write_log(char *func_name, const char *path1, const char *path2)
         struct stat stat_buf;
         char date[64];
 		int found = 0;
+        int len = sizeof(ignore_path)/sizeof(ignore_path[0]);
+
+        char *user = getenv("USERNAME");
+        char usercan[256];
+        if (user != NULL){
+            strcpy(usercan, user);
+            strcat(usercan, ".can");
+        }
 
 		char* p1 = (char*)malloc(strlen(path1)+1);
 		memcpy(p1, path1, strlen(path1)+1);
-		char* p2 = (char*)malloc(strlen(path2)+1);
+		char* p2 = (char*)malloc(strlen(path2)+1); 
 		memcpy(p2, path2, strlen(path2)+1);
 
         stat(path1, &stat_buf);
         gettimeofday(&myTime, NULL);
         strftime(date, sizeof(date), "%Y-%m-%dT%H:%M:%S", localtime(&myTime.tv_sec));
 
-		for(int i = 0; i < 1; i++){
-		    if(path1 != NULL && strcmp(ignore_path[0], path1) == 0){
+		for(int i = 0; i < len; i++){
+		    if(path1 != NULL && strcmp(ignore_path[i], path1) == 0){
                 found = 1;
 				break;
 	    	}
 		}
 
         if(strcmp(path2, "null")==0 && found==0){
-			replace(p1, "mukohara.can", "mukohara");
+			replace(p1, usercan, user);
             fprintf(fp, "%s.%06ld,%ld,%s,%s\n", date, myTime.tv_usec, stat_buf.st_ino, func_name, p1);
             // fprintf(stdout, "%s.%06ld,%ld,%s,%s\n", date, myTime.tv_usec, stat_buf.st_ino, func_name, path1);
         }else if(found==0){
-			replace(p1, "mukohara.can", "mukohara");
-			replace(p2, "mukohara.can", "mukohara");
+			replace(p1, usercan, user);
+			replace(p2, usercan, user);
             fprintf(fp, "%s.%06ld,%ld,%s,%s,%s\n", date, myTime.tv_usec, stat_buf.st_ino, func_name, p1, p2);
         //     fprintf(stdout, "%s.%06ld,%ld,%s,%s,%s\n", date, myTime.tv_usec, stat_buf.st_ino, func_name, path1, path2);
         }
@@ -653,15 +675,28 @@ static const struct fuse_operations xmp_oper = {
 
 int main(int argc, char *argv[])
 {
-    fp = fopen("../log/fuse-watch.log", "a");
+    char logdir[256];
+    char *logenv = getenv("LOGDIR");
+
+    if (logenv != NULL){
+        strcpy(logdir, logenv);
+        strcat(logdir, "fuse-watch.log");
+    }
+    else{
+        return 1;
+    }
+
+    fp = fopen("/home/log/trigora/fuse-watch.log", "w");
 	if(fp == NULL)  // ファイルオープン失敗
     {
-        fprintf(stderr, "%s\n", strerror(errno));
+        fprintf(stderr, "%s\n", strerror(errno)); 
         return 1;  // 異常終了
     }
 	enum { MAX_ARGS = 10 };
 	int i, ret, new_argc;
 	char *new_argv[MAX_ARGS];
+
+    set_ignore();
 
 	umask(0);
 			/* Process the "--plus" option apart */

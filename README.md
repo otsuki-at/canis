@@ -19,6 +19,29 @@ $ sudo apt-get install redis
 
 # Usage
 ## Settings
+### ログファイルを格納するディレクトリの作成
+1. Trigora で監視するディレクトリ以外の場所にログファイルを保存するディレクトリを作成する．以下の例では/home以下に作成したため，ディレクトリの所有者を変更している．
+  ```
+  $ cd /home
+  $ sudo mkdir log
+  $ sudo chown $USER log
+  $ sudo chgrp $USER log
+  ```
+
+### 環境変数の設定
+1. 以下の2つのパスについて記述した.envファイルを作成する．
+  + DIR には Trigora を保存したディレクトリのパスを定義する．
+  + LOGDIR にはログファイルを格納するために作成したディレクトリのパスを定義する．
+2. bin/trigora 中の ENVDIR 変数に .env ファイルのパスに変更する．
+  ```
+  # .envファイルのパスを設定する．
+  ENVDIR=/path/of/.env
+  ```
+3. ファイルに対する操作を fuse-watch.log に記述しないファイルが存在する場合は， .env ファイルに以下のような形式で追加する．2つ以上設定したい場合は， IGNORE1 のようにし，それ以降も IGNORE2, ... のように定義する．
+  ```
+  IGNORE0=/user.can/path/of/ignore0
+  ```
+
 ### 自動実行処理の設定
 1. `conf/actions/` に，自動実行したい処理の設定を記述した YAML ファイルを作成する．
   ```
