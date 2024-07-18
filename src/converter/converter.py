@@ -6,6 +6,11 @@ from lark import Transformer
 import time
 import pathlib
 import redis
+from dotenv import load_dotenv
+
+load_dotenv()
+dir = os.getenv('DIR')
+logdir = os.getenv('LOGDIR')
 
 converted_logs = ""
 pidfile_name = ""
@@ -115,7 +120,7 @@ class LogConverter:
         self.log = Log()
 
     def convert(self, logs):
-        grammar = open("../src/converter/pattern.lark")
+        grammar = open(dir + "/src/converter/pattern.lark")
         parser = Lark(grammar, parser="lalr", start="log")
         global converted_logs
 
@@ -164,7 +169,7 @@ class Publisher:
         self.rc.publish("converted_log", data)
 
 def handler(signum, frame):
-    os.remove("../tmp/" + pidfile_name)
+    os.remove(dir + "/tmp/" + pidfile_name)
     sys.exit()
 
 def main():
@@ -174,7 +179,7 @@ def main():
     pidfile_name = args[2]
     global converted_logs
     db = redis.Redis(host='localhost', port=6379, decode_responses=True)
-    pid_file = open("../tmp/" + pidfile_name, 'w')
+    pid_file = open(dir + "/tmp/" + pidfile_name, 'w')
     pid = str(os.getpid())
     pid_file.write(pid + '\n')
     pid_file.flush()
@@ -190,7 +195,7 @@ def main():
         out_logs = log_converter.convert(logs)
         converted_logs = ""
         publisher.publish(out_logs)
-        with open('../log/converted.log', 'a') as f:
+        with open(logdir + '/converted.log', 'a') as f:
             print(out_logs, file=f)
 
 

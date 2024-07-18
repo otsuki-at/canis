@@ -7,3 +7,5 @@
 /bin/dump.rdb
 
 /src/collector/collector
+
+.env

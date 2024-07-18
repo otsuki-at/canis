@@ -1,9 +1,13 @@
-import redis
 import sys
+import redis
 import os
 import signal
 import yaml
+import re
+from dotenv import load_dotenv
 
+load_dotenv()
+dir = os.getenv('DIR')
 pidfile_name = ""
 
 class Subscriber:
@@ -29,10 +33,10 @@ class Processor:
         with open(filepath, 'r') as actions_conf_yml:
             action_confs = yaml.safe_load(actions_conf_yml)
 
-        # print(action_confs["actions"])
+        # print(action_confs)
 
         for action_conf in action_confs["actions"]:
-            with open("../conf/actions/" + action_conf, "r") as action:
+            with open(dir + "/conf/actions/" + action_conf, "r") as action:
                 conf = yaml.safe_load(action)
                 self.action_confs.append([conf["path"], conf["when"], conf["do"]])
 
@@ -65,14 +69,16 @@ class Processor:
                 conf_path = conf[0]
                 conf_when = conf[1]
                 conf_do = conf[2]
-                if (conf_path == path) and (conf_when == event):
+                if re.fullmatch(conf_path,path) and (event in conf_when):
+                # if re.fullmatch(conf_path,path) and (conf_when == event):
+                # if (conf_path==path) and (conf_when == event):
                     os.system(conf_do)
 
     # def __del__(self):
     #     self.fd.close()
 
 def handler(signum, frame):
-    os.remove("../tmp/" + pidfile_name)
+    os.remove(dir + "/tmp/" + pidfile_name)
     sys.exit()
 
 def main():
@@ -80,7 +86,7 @@ def main():
     configfile_name = args[1]
     global pidfile_name
     pidfile_name = args[2]
-    pid_file = open('../tmp/' + pidfile_name, 'w')
+    pid_file = open(dir + '/tmp/' + pidfile_name, 'w')
     pid = str(os.getpid())
     pid_file.write(pid + '\n')
     pid_file.flush()
