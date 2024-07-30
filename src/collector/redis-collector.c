@@ -16,7 +16,7 @@
  *
  * Compile with
  *
- *     gcc -Wall collector.c `pkg-config fuse3 --cflags --libs` -o collector
+ *     gcc -Wall redis-collector.c `pkg-config fuse3 --cflags --libs` -o redis-collector -lhiredis
  *
  * ## Source code ##
  * \include passthrough.c
@@ -53,13 +53,15 @@
 #ifdef HAVE_SETXATTR
 #include <sys/xattr.h>
 #endif
+#include <hiredis/hiredis.h>
 
 #include "collector_helpers.h"
 #define MAX_ARG_NUM 100
 
 static int fill_dir_plus = 0;
-FILE *fp;
 char ignore_path[MAX_ARG_NUM][200];
+redisContext *c;
+redisReply *rep;
 
 void set_ignore(){
     int i=0;
@@ -102,7 +104,7 @@ char* replace(char* s, const char* before, const char* after)
 	return s;
 }
 
-void write_log(char *func_name, const char *path1, const char *path2)
+void publish_log(char *func_name, const char *path1, const char *path2)
 {
         struct timeval myTime;
         struct stat stat_buf;
@@ -135,15 +137,33 @@ void write_log(char *func_name, const char *path1, const char *path2)
 
         if(strcmp(path2, "null")==0 && found==0){
 			replace(p1, usercan, user);
-            fprintf(fp, "%s.%06ld,%ld,%s,%s\n", date, myTime.tv_usec, stat_buf.st_ino, func_name, p1);
+            rep = (redisReply *)redisCommand(c,"publish fuse-watch-log %s.%06ld,%ld,%s,%s",date, myTime.tv_usec, stat_buf.st_ino, func_name, p1);
             // fprintf(stdout, "%s.%06ld,%ld,%s,%s\n", date, myTime.tv_usec, stat_buf.st_ino, func_name, path1);
+            if( NULL == rep ){
+                redisFree( c );
+                exit(-1);
+            }
+            if( REDIS_REPLY_ERROR == rep->type ){
+                redisFree( c );
+                freeReplyObject( rep );
+                exit(-1);
+            }
         }else if(found==0){
 			replace(p1, usercan, user);
 			replace(p2, usercan, user);
-            fprintf(fp, "%s.%06ld,%ld,%s,%s,%s\n", date, myTime.tv_usec, stat_buf.st_ino, func_name, p1, p2);
+            rep = (redisReply *)redisCommand(c, "publish fuse-watch-log %s.%06ld,%ld,%s,%s,%s", date, myTime.tv_usec, stat_buf.st_ino, func_name, p1, p2);
         //     fprintf(stdout, "%s.%06ld,%ld,%s,%s,%s\n", date, myTime.tv_usec, stat_buf.st_ino, func_name, path1, path2);
+            if( NULL == rep ){
+                redisFree( c );
+                exit(-1);
+            }
+            if( REDIS_REPLY_ERROR == rep->type ){
+                redisFree( c );
+                freeReplyObject( rep );
+                exit(-1);
+            }
         }
-        fflush(fp);
+        freeReplyObject( resp );
 		free(p1);
 		free(p2);
 }
@@ -151,7 +171,7 @@ void write_log(char *func_name, const char *path1, const char *path2)
 static void *xmp_init(struct fuse_conn_info *conn,
 		      struct fuse_config *cfg)
 {
-    write_log("init", "null", "null");
+    publish_log("init", "null", "null");
 	(void) conn;
 	cfg->use_ino = 1;
 
@@ -172,7 +192,7 @@ static void *xmp_init(struct fuse_conn_info *conn,
 static int xmp_getattr(const char *path, struct stat *stbuf,
 		       struct fuse_file_info *fi)
 {
-    write_log("getattr", path, "null");
+    publish_log("getattr", path, "null");
 	(void) fi;
 	int res;
 
@@ -185,7 +205,7 @@ static int xmp_getattr(const char *path, struct stat *stbuf,
 
 static int xmp_access(const char *path, int mask)
 {
-    write_log("access", path, "null");
+    publish_log("access", path, "null");
 	int res;
 
 	res = access(path, mask);
@@ -197,7 +217,7 @@ static int xmp_access(const char *path, int mask)
 
 static int xmp_readlink(const char *path, char *buf, size_t size)
 {
-    write_log("readlink", path, "null");
+    publish_log("readlink", path, "null");
 	int res;
 
 	res = readlink(path, buf, size - 1);
@@ -213,7 +233,7 @@ static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		       off_t offset, struct fuse_file_info *fi,
 		       enum fuse_readdir_flags flags)
 {
-    write_log("readdir", path, "null");
+    publish_log("readdir", path, "null");
 	DIR *dp;
 	struct dirent *de;
 
@@ -240,7 +260,7 @@ static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 
 static int xmp_mknod(const char *path, mode_t mode, dev_t rdev)
 {
-    write_log("mknod", path, "null");
+    publish_log("mknod", path, "null");
 	int res;
 
 	res = mknod_wrapper(AT_FDCWD, path, NULL, mode, rdev);
@@ -252,7 +272,7 @@ static int xmp_mknod(const char *path, mode_t mode, dev_t rdev)
 
 static int xmp_mkdir(const char *path, mode_t mode)
 {
-    write_log("mkdir", path, "null");
+    publish_log("mkdir", path, "null");
 	int res;
 
 	res = mkdir(path, mode);
@@ -264,7 +284,7 @@ static int xmp_mkdir(const char *path, mode_t mode)
 
 static int xmp_unlink(const char *path)
 {
-    write_log("unlink", path, "null");
+    publish_log("unlink", path, "null");
 	int res;
 
 	res = unlink(path);
@@ -276,7 +296,7 @@ static int xmp_unlink(const char *path)
 
 static int xmp_rmdir(const char *path)
 {
-    write_log("rmdir", path, "null");
+    publish_log("rmdir", path, "null");
 	int res;
 
 	res = rmdir(path);
@@ -288,7 +308,7 @@ static int xmp_rmdir(const char *path)
 
 static int xmp_symlink(const char *from, const char *to)
 {
-    write_log("symlink", from, to);
+    publish_log("symlink", from, to);
 	int res;
 
 	res = symlink(from, to);
@@ -300,7 +320,7 @@ static int xmp_symlink(const char *from, const char *to)
 
 static int xmp_rename(const char *from, const char *to, unsigned int flags)
 {
-    write_log("rename", from, to);
+    publish_log("rename", from, to);
 	int res;
 
 	if (flags)
@@ -315,7 +335,7 @@ static int xmp_rename(const char *from, const char *to, unsigned int flags)
 
 static int xmp_link(const char *from, const char *to)
 {
-    write_log("link", from, to);
+    publish_log("link", from, to);
 	int res;
 
 	res = link(from, to);
@@ -328,7 +348,7 @@ static int xmp_link(const char *from, const char *to)
 static int xmp_chmod(const char *path, mode_t mode,
 		     struct fuse_file_info *fi)
 {
-    write_log("chmod", path, "null");
+    publish_log("chmod", path, "null");
 	(void) fi;
 	int res;
 
@@ -342,7 +362,7 @@ static int xmp_chmod(const char *path, mode_t mode,
 static int xmp_chown(const char *path, uid_t uid, gid_t gid,
 		     struct fuse_file_info *fi)
 {
-    write_log("chown", path, "null");
+    publish_log("chown", path, "null");
 	(void) fi;
 	int res;
 
@@ -356,7 +376,7 @@ static int xmp_chown(const char *path, uid_t uid, gid_t gid,
 static int xmp_truncate(const char *path, off_t size,
 			struct fuse_file_info *fi)
 {
-    write_log("truncate", path, "null");
+    publish_log("truncate", path, "null");
 	int res;
 
 	if (fi != NULL)
@@ -373,7 +393,7 @@ static int xmp_truncate(const char *path, off_t size,
 static int xmp_utimens(const char *path, const struct timespec ts[2],
 		       struct fuse_file_info *fi)
 {
-    write_log("utimens", path , "null");
+    publish_log("utimens", path , "null");
 	(void) fi;
 	int res;
 
@@ -389,7 +409,7 @@ static int xmp_utimens(const char *path, const struct timespec ts[2],
 static int xmp_create(const char *path, mode_t mode,
 		      struct fuse_file_info *fi)
 {
-    write_log("create", path, "null");
+    publish_log("create", path, "null");
 	int res;
 
 	res = open(path, fi->flags, mode);
@@ -402,7 +422,7 @@ static int xmp_create(const char *path, mode_t mode,
 
 static int xmp_open(const char *path, struct fuse_file_info *fi)
 {
-    write_log("open", path, "null");
+    publish_log("open", path, "null");
 	int res;
 
 	res = open(path, fi->flags);
@@ -416,7 +436,7 @@ static int xmp_open(const char *path, struct fuse_file_info *fi)
 static int xmp_read(const char *path, char *buf, size_t size, off_t offset,
 		    struct fuse_file_info *fi)
 {
-    write_log("read", path, "null");
+    publish_log("read", path, "null");
 	int fd;
 	int res;
 
@@ -440,7 +460,7 @@ static int xmp_read(const char *path, char *buf, size_t size, off_t offset,
 static int xmp_write(const char *path, const char *buf, size_t size,
 		     off_t offset, struct fuse_file_info *fi)
 {
-    write_log("write", path, "null");
+    publish_log("write", path, "null");
 	int fd;
 	int res;
 
@@ -464,7 +484,7 @@ static int xmp_write(const char *path, const char *buf, size_t size,
 
 static int xmp_statfs(const char *path, struct statvfs *stbuf)
 {
-    write_log("statfs", path, "null");
+    publish_log("statfs", path, "null");
 	int res;
 
 	res = statvfs(path, stbuf);
@@ -476,7 +496,7 @@ static int xmp_statfs(const char *path, struct statvfs *stbuf)
 
 static int xmp_release(const char *path, struct fuse_file_info *fi)
 {
-    write_log("release", path, "null");
+    publish_log("release", path, "null");
 	(void) path;
 	close(fi->fh);
 	return 0;
@@ -485,7 +505,7 @@ static int xmp_release(const char *path, struct fuse_file_info *fi)
 static int xmp_fsync(const char *path, int isdatasync,
 		     struct fuse_file_info *fi)
 {
-    write_log("fsync", path, "null");
+    publish_log("fsync", path, "null");
 	/* Just a stub.	 This method is optional and can safely be left
 	   unimplemented */
 
@@ -499,7 +519,7 @@ static int xmp_fsync(const char *path, int isdatasync,
 static int xmp_fallocate(const char *path, int mode,
 			off_t offset, off_t length, struct fuse_file_info *fi)
 {
-    write_log("fallocate", path, "null");
+    publish_log("fallocate", path, "null");
 	int fd;
 	int res;
 
@@ -529,7 +549,7 @@ static int xmp_fallocate(const char *path, int mode,
 static int xmp_setxattr(const char *path, const char *name, const char *value,
 			size_t size, int flags)
 {
-    write_log("setxattr", path, "null");
+    publish_log("setxattr", path, "null");
 	int res = lsetxattr(path, name, value, size, flags);
 	if (res == -1)
 		return -errno;
@@ -539,7 +559,7 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,
 static int xmp_getxattr(const char *path, const char *name, char *value,
 			size_t size)
 {
-    write_log("getxattr", path, "null");
+    publish_log("getxattr", path, "null");
 	int res = lgetxattr(path, name, value, size);
 	if (res == -1)
 		return -errno;
@@ -548,7 +568,7 @@ static int xmp_getxattr(const char *path, const char *name, char *value,
 
 static int xmp_listxattr(const char *path, char *list, size_t size)
 {
-    write_log("listxattr", path, "null");
+    publish_log("listxattr", path, "null");
 	int res = llistxattr(path, list, size);
 	if (res == -1)
 		return -errno;
@@ -557,7 +577,7 @@ static int xmp_listxattr(const char *path, char *list, size_t size)
 
 static int xmp_removexattr(const char *path, const char *name)
 {
-    write_log("removexattr", path, "null");
+    publish_log("removexattr", path, "null");
 	int res = lremovexattr(path, name);
 	if (res == -1)
 		return -errno;
@@ -572,7 +592,7 @@ static ssize_t xmp_copy_file_range(const char *path_in,
 				   struct fuse_file_info *fi_out,
 				   off_t offset_out, size_t len, int flags)
 {
-    write_log("copy_file_range", path_in, path_out);
+    publish_log("copy_file_range", path_in, path_out);
 	int fd_in, fd_out;
 	ssize_t res;
 
@@ -610,7 +630,7 @@ static ssize_t xmp_copy_file_range(const char *path_in,
 
 static off_t xmp_lseek(const char *path, off_t off, int whence, struct fuse_file_info *fi)
 {
-    write_log("lseek", path, "null");
+    publish_log("lseek", path, "null");
 	int fd;
 	off_t res;
 
@@ -674,23 +694,18 @@ static const struct fuse_operations xmp_oper = {
 
 int main(int argc, char *argv[])
 {
-    char logdir[256];
-    char *logenv = getenv("LOGDIR");
+    c = redisConnect("127.0.0.1", 6379);
 
-    if (logenv != NULL){
-        strcpy(logdir, logenv);
-        strcat(logdir, "fuse-watch.log");
-    }
-    else{
+    if (c == NULL || c->err) {
+        if (c) {
+            printf("Error: %s\n", c->errstr);
+            redisFree(c);
+        } else {
+            printf("Can't allocate redis context\n");
+        }
         return 1;
     }
 
-    fp = fopen("/home/log/trigora/fuse-watch.log", "w");
-	if(fp == NULL)  // ファイルオープン失敗
-    {
-        fprintf(stderr, "%s\n", strerror(errno)); 
-        return 1;  // 異常終了
-    }
 	enum { MAX_ARGS = 10 };
 	int i, ret, new_argc;
 	char *new_argv[MAX_ARGS];
@@ -707,6 +722,6 @@ int main(int argc, char *argv[])
 		}
 	}
 	ret = fuse_main(new_argc, new_argv, &xmp_oper, NULL);
-    fclose(fp);
+    redisFree(c);
     return ret;
 }
