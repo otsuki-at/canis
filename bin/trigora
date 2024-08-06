@@ -1,11 +1,12 @@
-#! /bin/bash
+#! /bin/bash -u
 # .envファイルのパスを設定する．
-ENVDIR=/path/of/.env
+ENVDIR=/home/otsuki/git/trigora/.env
 
 usage(){
 	echo "Usage: trigora [OPTION]... ACTION
 OPTION:
 	--help
+    --env
 ACTION:
 	start        enable system.
 	stop         disable system."
@@ -16,7 +17,7 @@ improper(){
 	echo -e "trigora: unrecognized argument.\\nTry 'trigora --help' for more information."
 }
 
-if [ $# -ne 1 ]; then
+if [ $# -ne 1 ] && [ $1 != "--env" ]; then
 	improper
 	exit 1
 fi
@@ -41,8 +42,9 @@ then
 	# touch ../tmp/proc.stat
 	# echo "proc.stat create."
 
-	# 履歴収集部起動
-	$DIR/src/collector/collector /fuse-watch
+    # 履歴収集部起動
+	# $DIR/src/collector/collector /fuse-watch
+    $DIR/src/collector/redis-collector /fuse-watch
 	# echo "collector 1" >> ../tmp/proc.stat
 	echo `date`,"Collecter started." >> $DIR/log/trigora.log
 
@@ -51,7 +53,7 @@ then
 	sudo ln -s /fuse-watch${HOME}.can ${HOME}
 	# echo "symlink 1" >> ../tmp/proc.stat
 	echo `date`,"Symlink created." >> $DIR/log/trigora.log
-
+    
 	# Redis起動
 	if [ ! -d "/var/run/redis" ]; then
 		sudo mkdir /var/run/redis
@@ -60,10 +62,20 @@ then
 	# echo "redis 1" >> ../tmp/proc.stat
 	echo `date`,"Redis server started." >> $DIR/log/trigora.log
 
-	# 履歴変換部起動
-	python3 $DIR/src/converter/converter.py $LOGDIR/fuse-watch.log converter.pid &
+    # 履歴送信部起動
+    python3 $DIR/src/gethistory/gethistory.py $LOGDIR/fuse-watch.log gethistory.pid &
+    echo `date`,"Gethistory started." >> $DIR/log/trigora.log
+	
+    # 履歴変換部起動
+	# python3 $DIR/src/converter/converter.py $LOGDIR/fuse-watch.log converter.pid &
+    python3 $DIR/src/converter/redis-converter.py converter.pid &
 	# echo "converter 1" >> ../tmp/proc.stat
 	echo `date`,"Converter started." >> $DIR/log/trigora.log
+
+    # # ハッシュ作成部起動
+    # python3 $DIR/src/makehash/makehash.py $LOGDIR/fuse-watch.log makehash.pid &
+    python3 $DIR/src/makehash/redis-makehash.py makehash.pid &
+    # echo `date`,"Makehash started." >> $DIR/log/trigora.log
 
 	# 実行部起動
 	python3 $DIR/src/executor/executor.py $DIR/conf/actions/actions.conf.yaml executor.pid &
@@ -81,6 +93,7 @@ then
 	# if [ ${SYMLINK_STAT: -1} -eq 1 ]; then
 	if [ -L ${HOME} ]; then
 		sudo unlink ${HOME}
+        cd $PWD
 		sudo mv ${HOME}.can ${HOME}
 		cd ${HOME}
 		# sed -i "s/symlink 1/symlink 0/g" ../tmp/proc.stat
@@ -112,7 +125,19 @@ then
 	# 	sed -i "s/executor 1/executor 0/g" ../tmp/proc.stat
 	# fi
 
-	# 履歴変換部，実行部停止
+	# ハッシュ作成部，履歴変換部，実行部停止
+    # if [ -e $DIR/tmp/makehash.pid ]; then
+	# 	MAKEHASH_PID="`cat $DIR/tmp/makehash.pid`"
+	# 	kill $MAKEHASH_PID
+	#  	echo `date`,"Makehash stop." >> $DIR/log/trigora.log
+	# fi
+
+	if [ -e $DIR/tmp/gethistory.pid ]; then
+		GETHISTORY_PID="`cat $DIR/tmp/gethistory.pid`"
+		kill $GETHISTORY_PID
+	 	echo `date`,"gethistory stop." >> $DIR/log/trigora.log
+	fi
+
 	if [ -e $DIR/tmp/converter.pid ]; then
 		CONVERTER_PID="`cat $DIR/tmp/converter.pid`"
 		kill $CONVERTER_PID
@@ -166,6 +191,9 @@ then
 elif [ $1 == "--help" ]
 then
 	usage
+elif [ $1 == "--env" ]
+then
+    ENVDIR=$2
 else
 	improper
 fi

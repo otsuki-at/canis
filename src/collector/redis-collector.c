@@ -163,7 +163,7 @@ void publish_log(char *func_name, const char *path1, const char *path2)
                 exit(-1);
             }
         }
-        freeReplyObject( resp );
+        freeReplyObject( rep );
 		free(p1);
 		free(p2);
 }

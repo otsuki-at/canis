@@ -7,6 +7,7 @@ import time
 import pathlib
 import redis
 from dotenv import load_dotenv
+import subprocess
 
 load_dotenv()
 dir = os.getenv('DIR')
@@ -118,10 +119,11 @@ class LogFile:
 class LogConverter:
     def __init__(self):
         self.log = Log()
+        with open(dir + "/src/converter/pattern.lark", 'r')as f:
+            grammar = f.read()
+        self.parser = Lark(grammar, parser="lalr", start="log")
 
     def convert(self, logs):
-        grammar = open(dir + "/src/converter/pattern.lark")
-        parser = Lark(grammar, parser="lalr", start="log")
         global converted_logs
 
         for entry in logs:
@@ -147,7 +149,7 @@ class LogConverter:
                     #     print("," + path)
                     #
                     # self.log.delete_logs(path)
-                    tree = parser.parse(logs)
+                    tree = self.parser.parse(logs)
 
                     converted_logs += self.log.get_date() + "," + self.log.get_inode() + ","
                     LogGenerator().transform(tree)
@@ -158,7 +160,6 @@ class LogConverter:
                     self.log.delete_logs(path)
                 except:
                     pass
-        grammar.close()
         return converted_logs
 
 class Publisher:

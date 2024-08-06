@@ -679,13 +679,13 @@ int main(int argc, char *argv[])
 
     if (logenv != NULL){
         strcpy(logdir, logenv);
-        strcat(logdir, "fuse-watch.log");
+        strcat(logdir, "/fuse-watch.log");
     }
     else{
         return 1;
     }
 
-    fp = fopen("/home/log/trigora/fuse-watch.log", "w");
+    fp = fopen(logdir, "w");
 	if(fp == NULL)  // ファイルオープン失敗
     {
         fprintf(stderr, "%s\n", strerror(errno)); 

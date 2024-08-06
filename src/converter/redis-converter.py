@@ -89,10 +89,11 @@ class Log:
 class LogConverter:
     def __init__(self):
         self.log = Log()
+        with open(dir + "/src/converter/pattern.lark", 'r')as f:
+            grammar = f.read()
+        self.parser = Lark(grammar, parser="lalr", start="log")
 
     def convert(self, log_mes):
-        grammar = open(dir + "/src/converter/pattern.lark")
-        parser = Lark(grammar, parser="lalr", start="log")
         global converted_logs
 
         self.log.set_log(log_mes)
@@ -107,7 +108,7 @@ class LogConverter:
             self.log.store_entry (path, log_mes)
             log_mes = self.log.get_logs(path)
             try:
-                tree = parser.parse(log_mes)
+                tree = self.parser.parse(log_mes)
 
                 converted_logs += self.log.get_date() + "," + self.log.get_inode() + ","
                 LogGenerator().transform(tree)
@@ -118,7 +119,6 @@ class LogConverter:
                 self.log.delete_logs(path)
             except:
                 pass
-        grammar.close()
         return converted_logs
 
 class Publisher:
@@ -174,7 +174,7 @@ def main():
             continue
         publisher.publish(out_logs)
         with open(logdir + '/converted.log', 'a') as f:
-            print(out_logs, file=f)
+            print(out_logs, file=f, end='')
 
 
 if __name__ == "__main__":
