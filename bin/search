@@ -1,0 +1,28 @@
+#!/bin/bash
+ENVDIR=/home/otsuki/git/trigora/.env
+
+usage(){
+        echo "Usage: search [OPTION]... PATH
+    OPTION:
+            --help
+    PATH:
+            The file path to search."
+}
+
+improper(){
+    echo -e "search: unrecognized argument.\\nTry 'search --help' for more information"
+}
+if [ $# -eq 1 ]
+then
+        source $ENVDIR
+        export LOGDIR
+        export DIR
+        
+        HASH=`sha256sum $1`
+        $DIR/src/searchhash/searchhash $HASH
+elif [ $1 == "--help" ]
+then
+        usage
+else
+        improper
+fi

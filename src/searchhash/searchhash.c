@@ -4,7 +4,6 @@
 #include <errno.h>
 
 #define MAX_LEN 1024
-#define pr printf("1\n")
 
 struct hashinfo {
     char time[27];
@@ -12,6 +11,7 @@ struct hashinfo {
     char path[MAX_LEN];
 } latest;
 
+// ログファイルの行を分割
 struct hashinfo split_info(char *line){
     struct hashinfo info;
     strcpy(info.time, strtok(line, ","));
@@ -20,16 +20,17 @@ struct hashinfo split_info(char *line){
     return info;
 }
 
-int search_hash(FILE *fp, char *file){
+// 探したいファイルのハッシュを探索
+int search_hash(FILE *fp, char *hash){
     char line[MAX_LEN];
     struct hashinfo info;
     int cnt = 0;
     while(fgets(line, MAX_LEN, fp) != NULL){
         info = split_info(line);
 
-        if (strcmp(info.path, file) == 0){
+        if (strcmp(info.hash, hash) == 0){
             latest = info;
-            cnt++;
+            return ++cnt;
         }
     }
     return cnt;
@@ -38,7 +39,7 @@ int search_hash(FILE *fp, char *file){
 int main(int argc, char *argv[]){
     FILE *fp;
     int cnt;
-    char filepath[MAX_LEN];
+    char arghash[65];
     char logdir[256];
     char *logenv = getenv("LOGDIR");
 
@@ -56,15 +57,17 @@ int main(int argc, char *argv[]){
         return 1;
     }
 
-    strcpy(filepath,argv[1]);
+    strcpy(arghash,argv[1]);
 
-    strcat(filepath, "\n");
-    cnt = search_hash(fp, filepath);
+    cnt = search_hash(fp, arghash);
 
     if(cnt){
-        printf("%s,%s%s\n", latest.time, latest.path, latest.hash);
+        // 引数のファイルの作成時間，パスおよびハッシュ値を表示
+        printf("%s\n%s\n", latest.time, latest.hash);
     }
     else{
+        // 引数のファイルが見つからなかった場合の処理
         printf("%s is not found\n",argv[1]);
     }
+    fclose(fp);
 }
