@@ -63,7 +63,7 @@ int main(int argc, char *argv[]){
 
     if(cnt){
         // 引数のファイルの作成時間，パスおよびハッシュ値を表示
-        printf("%s\n%s\n", latest.time, latest.hash);
+        printf("操作された時刻: %s\nハッシュ値: %s\nファイルパス: %s", latest.time, latest.hash, latest.path);
     }
     else{
         // 引数のファイルが見つからなかった場合の処理
