@@ -121,7 +121,7 @@ class LogConverter:
         self.log = Log()
         with open(dir + "/src/converter/pattern.lark", 'r')as f:
             grammar = f.read()
-        self.parser = Lark(grammar, parser="lalr", start="log")
+        self.parser = Lark(grammar, parser="lalr", start="log") # 構文解析器の定義
 
     def convert(self, logs):
         global converted_logs
@@ -192,7 +192,7 @@ def main():
 
     publisher = Publisher()
     while(True):
-        logs = logfile.get_update()
+        logs = logfile.get_update() # ログファイルから操作履歴を取得
         out_logs = log_converter.convert(logs)
         converted_logs = ""
         publisher.publish(out_logs)

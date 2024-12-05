@@ -163,11 +163,11 @@ def main():
 
     log_converter = LogConverter()
 
-    subscriber = Subscriber()
+    subscriber = Subscriber() # 操作履歴を受信するRedisと接続
     publisher = Publisher()
 
     while(True):
-        log_mes = subscriber.listen()
+        log_mes = subscriber.listen() # Redisから操作履歴を取得
         out_logs = log_converter.convert(log_mes)
         converted_logs = ""
         if out_logs == "":
