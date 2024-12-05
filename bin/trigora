@@ -12,7 +12,6 @@ ACTION:
 	stop         disable system."
 }
 
-
 improper(){
 	echo -e "trigora: unrecognized argument.\\nTry 'trigora --help' for more information."
 }
@@ -43,8 +42,8 @@ then
 	# echo "proc.stat create."
 
     # 履歴収集部起動
-	# $DIR/src/collector/collector /fuse-watch
-    $DIR/src/collector/redis-collector /fuse-watch
+	$DIR/src/collector/collector /fuse-watch
+    # $DIR/src/collector/redis-collector /fuse-watch
 	# echo "collector 1" >> ../tmp/proc.stat
 	echo `date`,"Collecter started." >> $DIR/log/trigora.log
 
@@ -53,7 +52,7 @@ then
 	sudo ln -s /fuse-watch${HOME}.can ${HOME}
 	# echo "symlink 1" >> ../tmp/proc.stat
 	echo `date`,"Symlink created." >> $DIR/log/trigora.log
-    
+
 	# Redis起動
 	if [ ! -d "/var/run/redis" ]; then
 		sudo mkdir /var/run/redis
@@ -65,7 +64,7 @@ then
     # 履歴送信部起動
     python3 $DIR/src/gethistory/gethistory.py $LOGDIR/fuse-watch.log gethistory.pid &
     echo `date`,"Gethistory started." >> $DIR/log/trigora.log
-	
+
     # 履歴変換部起動
 	# python3 $DIR/src/converter/converter.py $LOGDIR/fuse-watch.log converter.pid &
     python3 $DIR/src/converter/redis-converter.py converter.pid &
@@ -87,7 +86,7 @@ then
     source $ENVDIR
     export LOGDIR
     export DIR
-    
+
 	# シンボリックリンク解除
 	# SYMLINK_STAT=`cat ../tmp/proc.stat | grep symlink`
 	# if [ ${SYMLINK_STAT: -1} -eq 1 ]; then
