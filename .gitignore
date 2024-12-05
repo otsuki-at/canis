@@ -9,4 +9,7 @@
 /src/collector/collector
 /src/searchhash/searchhash
 
+conf/actions/action*.yaml
+conf/actions/action*.example.yaml
+conf/actions/actions.conf.yaml
 .env
