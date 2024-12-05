@@ -61,6 +61,7 @@ static int fill_dir_plus = 0;
 FILE *fp;
 char ignore_path[MAX_ARG_NUM][200];
 
+// ログに出力しないファイルのパスの設定
 void set_ignore(){
     int i=0;
     char ignore[10];
@@ -119,7 +120,7 @@ void write_log(char *func_name, const char *path1, const char *path2)
 
 		char* p1 = (char*)malloc(strlen(path1)+1);
 		memcpy(p1, path1, strlen(path1)+1);
-		char* p2 = (char*)malloc(strlen(path2)+1); 
+		char* p2 = (char*)malloc(strlen(path2)+1);
 		memcpy(p2, path2, strlen(path2)+1);
 
         stat(path1, &stat_buf);
@@ -133,6 +134,7 @@ void write_log(char *func_name, const char *path1, const char *path2)
 	    	}
 		}
 
+        // ログファイルに操作時間，操作，パスを出力
         if(strcmp(path2, "null")==0 && found==0){
 			replace(p1, usercan, user);
             fprintf(fp, "%s.%06ld,%ld,%s,%s\n", date, myTime.tv_usec, stat_buf.st_ino, func_name, p1);
@@ -679,7 +681,7 @@ int main(int argc, char *argv[])
 
     if (logenv != NULL){
         strcpy(logdir, logenv);
-        strcat(logdir, "/fuse-watch.log");
+        strcat(logdir, "/fuse-watch.log"); // ログファイルのパスを設定
     }
     else{
         return 1;
@@ -688,7 +690,7 @@ int main(int argc, char *argv[])
     fp = fopen(logdir, "w");
 	if(fp == NULL)  // ファイルオープン失敗
     {
-        fprintf(stderr, "%s\n", strerror(errno)); 
+        fprintf(stderr, "%s\n", strerror(errno));
         return 1;  // 異常終了
     }
 	enum { MAX_ARGS = 10 };

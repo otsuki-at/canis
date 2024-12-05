@@ -63,6 +63,7 @@ char ignore_path[MAX_ARG_NUM][200];
 redisContext *c;
 redisReply *rep;
 
+// ログに出力しないファイルのパスの設定
 void set_ignore(){
     int i=0;
     char ignore[10];
@@ -135,6 +136,7 @@ void publish_log(char *func_name, const char *path1, const char *path2)
 	    	}
 		}
 
+        // Redisに操作時間，操作，パスを出力
         if(strcmp(path2, "null")==0 && found==0){
 			replace(p1, usercan, user);
             rep = (redisReply *)redisCommand(c,"publish fuse-watch-log %s.%06ld,%ld,%s,%s",date, myTime.tv_usec, stat_buf.st_ino, func_name, p1);
@@ -694,6 +696,7 @@ static const struct fuse_operations xmp_oper = {
 
 int main(int argc, char *argv[])
 {
+    // Redisに接続
     c = redisConnect("127.0.0.1", 6379);
 
     if (c == NULL || c->err) {
