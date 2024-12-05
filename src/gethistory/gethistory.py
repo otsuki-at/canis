@@ -68,9 +68,12 @@ def main():
     pid_file.flush()
     signal.signal(signal.SIGTERM, handler)
 
+    # ログを取得するファイルを設定
     logfile = LogFile(logfile_name)
 
+    # ログを出力するRedisを設定
     publisher = Publisher()
+
     while(True):
         logs = logfile.get_update()
         for log in logs:

@@ -58,16 +58,16 @@ def main():
     logfile = LogFile(logfile_name)
 
     while(True):
-        logs = logfile.get_update()
+        logs = logfile.get_update() # ログをファイルから取得
         for entry in logs:
             time = entry.split(',')[0]
             event = entry.split(',')[2]
             file_path = entry.split(',')[3]
 
-            if(event != "getattr" and event != "read"):
-                if os.path.isfile(file_path):
-                    file_path = file_path.replace('otsuki','otsuki.can',1)
-                    hash_value = subprocess.run(['sha256sum',file_path], capture_output=True, text=True).stdout
+            if(event != "getattr" and event != "read"): # 操作がgetaddrがreadの場合はハッシュ作成しない
+                if os.path.isfile(file_path): # パスがファイルかどうか確かめる
+                    file_path = file_path.replace('otsuki','otsuki.can',1) # ハッシュ作成時に利用するパスをFUSEで監視しないパスに変更
+                    hash_value = subprocess.run(['sha256sum',file_path], capture_output=True, text=True).stdout # ハッシュを作成
                     hash_value = hash_value.replace('otsuki.can','otsuki',1)
                     with open (logdir + '/hash.log', 'a') as f:
                         now = datetime.datetime.now()

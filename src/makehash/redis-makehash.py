@@ -13,6 +13,13 @@ load_dotenv()
 dir = os.getenv('DIR')
 logdir = os.getenv('LOGDIR')
 
+class Hashsetter:
+    def __init__(self):
+        self.rc = redis.Redis(host='localhost', port=6379, decode_responses=True)
+
+    def sethash(self, time, hash):
+        rc.set(hash, time)
+
 class Subscriber:
     def __init__(self):
         self.rc = redis.Redis(host='localhost', port=6379, decode_responses=True)
@@ -44,17 +51,18 @@ def main():
     signal.signal(signal.SIGTERM, handler)
 
     subscriber = Subscriber()
+    hashsetter = Hashsetter()
 
     while(True):
-        log = subscriber.listen()
+        log = subscriber.listen() # ログをRedisから取得
         time = log.split(',')[0]
         event = log.split(',')[2]
         file_path = log.split(',')[3]
 
-        if(event != "getattr" and event != "read"):
-            if os.path.isfile(file_path):
-                file_path = file_path.replace('otsuki','otsuki.can',1)
-                hash_value = subprocess.run(['sha256sum',file_path], capture_output=True, text=True).stdout
+        if(event != "getattr" and event != "read"): # 操作がgetaddrがreadの場合はハッシュ作成しない
+            if os.path.isfile(file_path): # パスがファイルかどうか確かめる
+                file_path = file_path.replace('otsuki','otsuki.can',1) # ハッシュ作成時に利用するパスをFUSEで監視しないパスに変更
+                hash_value = subprocess.run(['sha256sum',file_path], capture_output=True, text=True).stdout # ハッシュを作成
                 hash_value = hash_value.replace('otsuki.can','otsuki',1)
                 hash_value = hash_value.replace('  ',',',1)
                 with open (logdir + '/hash.log', 'a') as f:
