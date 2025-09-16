@@ -1,3 +1,0 @@
-path: /home/mukohara/test
-when: create
-do: echo "create"

@@ -60,7 +60,11 @@
 static int fill_dir_plus = 0;
 FILE *fp;
 char ignore_path[MAX_ARG_NUM][200];
+char *usercan;
+int userlen;
+int usercanlen;
 
+// ログに出力しないファイルのパスの設定
 void set_ignore(){
     int i=0;
     char ignore[10];
@@ -72,35 +76,14 @@ void set_ignore(){
     }
 }
 
-char* replace(char* s, const char* before, const char* after)
+int search_substring(const char* s, const char* before)
 {
-	const size_t before_len = strlen(before);
-	if (before_len == 0){
-		return s;
-	}
+	char *test;
 
-	const size_t after_len = strlen(after);
-	char* p = s;
+	test = strstr(s,before);
 
-	for (;;){
-		// 置換対象の文字列を探す
-		p = strstr(p, before);
-		if (p == NULL){
-			break;
-		}
-
-		*p = '\0';
-
-        strcat(s, after);
-        char *path_before = (char*)malloc(strlen(p+before_len)+1);
-        memcpy(aaa,p+before_len,strlen(p+before_len)+1);
-        strcat(s, path_before);
-
-
-		// 探索開始位置をずらす
-		p += after_len;
-	}
-	return s;
+	if (test == 0) return -1;
+	else return (test - s);
 }
 
 void write_log(char *func_name, const char *path1, const char *path2)
@@ -110,22 +93,11 @@ void write_log(char *func_name, const char *path1, const char *path2)
         char date[64];
 		int found = 0;
         int len = sizeof(ignore_path)/sizeof(ignore_path[0]);
-
-        char *user = getenv("USERNAME");
-        char usercan[256];
-        if (user != NULL){
-            strcpy(usercan, user);
-            strcat(usercan, ".can");
-        }
-
-		char* p1 = (char*)malloc(strlen(path1)+1);
-		memcpy(p1, path1, strlen(path1)+1);
-		char* p2 = (char*)malloc(strlen(path2)+1); 
-		memcpy(p2, path2, strlen(path2)+1);
+		int p1index, p2index;
 
         stat(path1, &stat_buf);
         gettimeofday(&myTime, NULL);
-        strftime(date, sizeof(date), "%Y-%m-%dT%H:%M:%S", localtime(&myTime.tv_sec));
+        strftime(date, sizeof(date), "%Y-%m-%dT%H:%M:%S", gmtime(&myTime.tv_sec));
 
 		for(int i = 0; i < len; i++){
 		    if(path1 != NULL && strcmp(ignore_path[i], path1) == 0){
@@ -134,19 +106,30 @@ void write_log(char *func_name, const char *path1, const char *path2)
 	    	}
 		}
 
+        // ログファイルに操作時間，操作，パスを出力
         if(strcmp(path2, "null")==0 && found==0){
-			replace(p1, usercan, user);
-            fprintf(fp, "%s.%06ld,%ld,%s,%s\n", date, myTime.tv_usec, stat_buf.st_ino, func_name, p1);
-            // fprintf(stdout, "%s.%06ld,%ld,%s,%s\n", date, myTime.tv_usec, stat_buf.st_ino, func_name, path1);
+			p1index = search_substring(path1, usercan);
+			if(p1index >= 0){
+				fprintf(fp, "%s.%06ld,%ld,%s,%.*s%s\n", date, myTime.tv_usec, stat_buf.st_ino, func_name, p1index+userlen, path1, path1+usercanlen+p1index);
+			}else{
+				fprintf(fp, "%s.%06ld,%ld,%s,%s\n", date, myTime.tv_usec, stat_buf.st_ino, func_name, path1);
+			}
         }else if(found==0){
-			replace(p1, usercan, user);
-			replace(p2, usercan, user);
-            fprintf(fp, "%s.%06ld,%ld,%s,%s,%s\n", date, myTime.tv_usec, stat_buf.st_ino, func_name, p1, p2);
-        //     fprintf(stdout, "%s.%06ld,%ld,%s,%s,%s\n", date, myTime.tv_usec, stat_buf.st_ino, func_name, path1, path2);
+			p1index = search_substring(path1, usercan);
+			p2index = search_substring(path2, usercan);
+			if(p1index >= 0 && p2index >= 0){
+				fprintf(fp, "%s.%06ld,%ld,%s,%.*s%s,%.*s%s\n", date, myTime.tv_usec, stat_buf.st_ino, func_name, p1index+userlen, path1, path1+usercanlen+p1index, p2index+userlen, path2, path2+usercanlen+p2index);
+			}else if(p1index >= 0 && p2index < 0){
+				fprintf(fp, "%s.%06ld,%ld,%s,%.*s%s,%s\n", date, myTime.tv_usec, stat_buf.st_ino, func_name, p1index+userlen, path1, path1+usercanlen+p1index, path2);
+			}else if(p1index < 0 && p2index >= 0){
+				fprintf(fp, "%s.%06ld,%ld,%s,%s,%.*s%s\n", date, myTime.tv_usec, stat_buf.st_ino, func_name, path1, p2index+userlen, path2, path2+usercanlen+p2index);
+			}else{
+				fprintf(fp, "%s.%06ld,%ld,%s,%s,%s\n", date, myTime.tv_usec, stat_buf.st_ino, func_name, path1, path2);
+			}
         }
         fflush(fp);
-		free(p1);
-		free(p2);
+		// free(p1);
+		// free(p2);
 }
 
 static void *xmp_init(struct fuse_conn_info *conn,
@@ -677,26 +660,29 @@ int main(int argc, char *argv[])
 {
     char logdir[256];
     char *logenv = getenv("LOGDIR");
-
     if (logenv != NULL){
         strcpy(logdir, logenv);
-        strcat(logdir, "fuse-watch.log");
+        strcat(logdir, "/fuse-watch.log"); // ログファイルのパスを設定
     }
     else{
         return 1;
     }
-
-    fp = fopen("/home/log/trigora/fuse-watch.log", "w");
+    fp = fopen(logdir, "w");
 	if(fp == NULL)  // ファイルオープン失敗
     {
-        fprintf(stderr, "%s\n", strerror(errno)); 
+        fprintf(stderr, "%s\n", strerror(errno));
         return 1;  // 異常終了
     }
 	enum { MAX_ARGS = 10 };
 	int i, ret, new_argc;
 	char *new_argv[MAX_ARGS];
-
     set_ignore();
+	usercan = getenv("USERNAME");
+	userlen = strlen(usercan);
+	if (usercan != NULL){
+		strcat(usercan, ".can");
+	}
+	usercanlen = strlen(usercan);
 
 	umask(0);
 			/* Process the "--plus" option apart */

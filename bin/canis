@@ -1,0 +1,154 @@
+#! /bin/bash -u
+# .envファイルのパスを設定する．
+ENVDIR=/path/of/canis/.env
+
+Usage(){
+	echo "Usage: canis [OPTION]... ACTION
+OPTION:
+	--help
+ACTION:
+	start		enable system.
+	stop		disable system.
+	info		search hash."
+}
+
+improper(){
+	echo -e "canis: unrecognized argument.\\nTry 'canis --help' for more information."
+}
+
+expected=1
+[ "${1:-}" = "info" ] && expected=2
+if [ $# -ne "$expected" ]; then
+    improper
+    exit 1
+fi
+
+if [ $1 == "start" ]
+then
+    # .envファイルに設定した環境変数の読み込み
+    source $ENVDIR
+    export LOGDIR
+    export DIR
+
+    for ignore in $(compgen -v | grep ^IGNORE); do
+	    export $ignore
+    done
+
+	# 履歴収集部の収集先ログファイル作成
+	sudo touch $LOGDIR/fuse-watch.log
+	sudo chmod o+w $LOGDIR/fuse-watch.log
+	echo `date`,"$LOGDIR/fuse-watch.log created." >> $DIR/log/canis.log
+
+    # 履歴収集部起動
+	$DIR/src/collector/collector /fuse-watch
+	echo `date`,"Collecter started." >> $DIR/log/canis.log
+
+	# ホームディレクトリのシンボリックリンク調整
+	sudo mv ${HOME} ${HOME}.can
+	sudo ln -s /fuse-watch${HOME}.can ${HOME}
+	echo `date`,"Symlink created." >> $DIR/log/canis.log
+
+	# Redis起動
+	if [ ! -d "/var/run/redis" ]; then
+		sudo mkdir /var/run/redis
+	fi
+	sudo redis-server /etc/redis/redis.conf
+	echo `date`,"Redis server started." >> $DIR/log/canis.log
+
+    # 履歴送信部起動
+    python3 $DIR/src/gethistory/gethistory.py $LOGDIR/fuse-watch.log gethistory.pid &
+    echo `date`,"Gethistory started." >> $DIR/log/canis.log
+
+    # 履歴変換部起動
+	python3 $DIR/src/converter/return_converter.py converter.pid &
+	echo `date`,"Converter started." >> $DIR/log/canis.log
+
+    # ハッシュ作成部起動
+    python3 $DIR/src/makehash/makehash.py makehash.pid &
+
+elif [ $1 == "stop" ]
+then
+    # .envファイルに設定した環境変数の読み込み
+    source $ENVDIR
+    export LOGDIR
+    export DIR
+
+	# シンボリックリンク解除
+	if [ -L ${HOME} ]; then
+		sudo unlink ${HOME}
+        cd $PWD
+		sudo mv ${HOME}.can ${HOME}
+		cd ${HOME}
+		echo `date`,"Symlink deleted." >> $DIR/log/canis.log
+	fi
+
+	# 履歴送信部，ハッシュ作成部，履歴変換部
+	if [ -e $DIR/tmp/gethistory.pid ]; then
+		GETHISTORY_PID="`cat $DIR/tmp/gethistory.pid`"
+		kill $GETHISTORY_PID
+	 	echo `date`,"gethistory stop." >> $DIR/log/canis.log
+	fi
+
+	if [ -e $DIR/tmp/converter.pid ]; then
+		CONVERTER_PID="`cat $DIR/tmp/converter.pid`"
+		kill $CONVERTER_PID
+	 	echo `date`,"Converter stop." >> $DIR/log/canis.log
+	fi
+
+    if [ -e $DIR/tmp/makehash.pid ]; then
+		MAKEHASH_PID="`cat $DIR/tmp/makehash.pid`"
+		kill $MAKEHASH_PID
+	 	echo `date`,"Makehash stop." >> $DIR/log/canis.log
+	fi
+
+	# Redis停止
+	if [ -e /var/run/redis/redis-server.pid ]; then
+		sudo pkill redis-server
+		echo `date`,"Redis stop." >> $DIR/log/canis.log
+	fi
+
+	# 各プロセス終了後，即ファイルシステムをアンマウントすると剥がれないので少し待機
+	sleep 0.5
+
+	# ファイルシステム(履歴収集部)アンマウント
+	RSLT=`mount | grep collector`
+	if [ -n "$RSLT" ]; then
+		sudo umount /fuse-watch
+		if [ $? -ne 0 ]; then
+			exit 1;
+		fi
+		echo `date`,"Collector stop." >> $DIR/log/canis.log
+	fi
+
+elif [ $1 == "info" ] && [ $# -eq 2 ]
+then
+    # .envファイルに設定した環境変数の読み込み
+    source $ENVDIR
+    export LOGDIR
+    export DIR
+
+	# 引数がファイルか確認
+	if [ ! -f "$2" ]; then
+		echo "This target is not file."
+		exit 1
+	fi
+
+	# ハッシュの作成
+	HASH=$(sha256sum $2 | cut -d ' ' -f 1)
+
+	# 証跡ログから検索
+	TIMESTAMP=$(grep $HASH $LOGDIR/hash.log | head -n 1)
+
+	IFS=',' read -ra ELEMENTS <<< "$TIMESTAMP"
+
+	MESSAGE="作成時刻: ${ELEMENTS[0]}\nファイル: ${ELEMENTS[2]}\nハッシュ: ${ELEMENTS[1]}"
+
+	echo -e $MESSAGE
+
+elif [ $1 == "--help" ]
+then
+	Usage
+
+else
+	improper
+fi

@@ -1,0 +1,23 @@
+#! /bin/bash
+
+ENVDIR=/path/of/canis/.env
+
+source $ENVDIR
+export LOGDIR
+export HASHDIR
+
+# 日次ハッシュを作成する日付の取得
+current_date=$(date -u --date="yesterday" "+%Y-%m-%d")
+current_date=$current_date
+
+# その日の証跡一覧を別ファイルに出力
+awk -F, '$1 ~ /^'"$current_date"'/ {print}' "$LOGDIR/hash.log" > "$LOGDIR/daily/$current_date.log"
+
+# 日次ハッシュを作成
+sha256sum $LOGDIR/daily/$current_date.log > $HASHDIR/${current_date}_hash.log
+
+# 日次ハッシュを外部(Gitリポジトリ)に公開
+cd $HASHDIR
+git add ${current_date}_hash.log
+git commit -m "Upload ${current_date} hash"
+git push origin main

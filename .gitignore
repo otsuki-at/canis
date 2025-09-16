@@ -3,9 +3,22 @@
 !/log/.keep
 !/tmp/.keep
 
+
 /src/converter/dump.rdb
 /bin/dump.rdb
 
 /src/collector/collector
 
 .env
+**/__pycache__/**
+
+# mcp
+# Python-generated files
+mcp/*.py[oc]
+mcp/build/
+mcp/dist/
+mcp/wheels/
+mcp/*.egg-info
+
+# Virtual environments
+mcp/.venv
